@@ -14,7 +14,6 @@ pipeline {
     }
 
     stages {
-
         stage('Cloner le projet') {
             steps {
                 git branch: 'ZiedTabib-4TWIN2-G5',
@@ -28,23 +27,24 @@ pipeline {
             }
         }
 
-        stage(' Exécuter les tests') {
+        stage('Exécuter les tests') {
             steps {
                 sh 'mvn test'
             }
         }
 
-         stage('MVN SONARQUAR') {
+        stage('MVN SONARQUAR') {
             steps {
                 sh 'mvn sonar:sonar -Dsonar.login=squ_eec056176572f02fe6565e157539b9d4c57baf15 -Dmaven.test.skip=true'
             }
+        } 
 
-              
-	    stage('MVN Nexus'){
-    		steps {
-    			sh 'mvn deploy'
-    		}
-	    }
+        stage('MVN Nexus') {
+            steps {
+                sh 'mvn deploy'
+            }
+        }
+    } // Fin du bloc stages
 
     post {
         success {
