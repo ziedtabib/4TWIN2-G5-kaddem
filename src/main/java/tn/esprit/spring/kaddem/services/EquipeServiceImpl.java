@@ -25,8 +25,18 @@ public class EquipeServiceImpl implements IEquipeService {
 	}
 
 	public Equipe addEquipe(Equipe e) {
+		if (e == null || e.getNomEquipe() == null || e.getNomEquipe().trim().isEmpty()) {
+			log.error("Invalid Equipe: name cannot be null or empty");
+			throw new IllegalArgumentException("Equipe name cannot be null or empty");
+		}
+		if (e.getNiveau() == null) {
+			log.error("Invalid Equipe: niveau cannot be null");
+			throw new IllegalArgumentException("Equipe niveau cannot be null");
+		}
 		log.info("Ajout de l'équipe : {}", e.getNomEquipe());
-		return equipeRepository.save(e);
+		Equipe saved = equipeRepository.save(e);
+		log.debug("Équipe ajoutée avec l'ID : {}", saved.getIdEquipe());
+		return saved;
 	}
 
 	public void deleteEquipe(Integer idEquipe) {
