@@ -96,7 +96,7 @@
             <id>nexus</id>
             <url>http://192.168.56.101:8081/repository/maven-releases/</url>
         </repository>
-       
+
     </distributionManagement>
 
     <build>
