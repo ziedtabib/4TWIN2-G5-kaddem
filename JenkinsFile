@@ -7,10 +7,10 @@ pipeline {
     }
 
     environment {
-        SONAR_TOKEN = 'squ_38e27a2f6d49836a65b117cd550798a0648f61bb'
+        SONAR_TOKEN = 'squ_b46167a3bc15e5a285301ea6549c6e60b1afebd0'
         SONAR_HOST_URL = 'http://localhost:9000'
         NEXUS_URL = 'http://localhost:8081/repository/maven-releases/'
-
+        DOCKER_IMAGE = 'israaboulaares-4TWIN2-G5-kaddem'
     }
 
     stages {
@@ -92,4 +92,6 @@ pipeline {
             echo "❌ Le pipeline a échoué."
         }
     }
+}
+
 }
