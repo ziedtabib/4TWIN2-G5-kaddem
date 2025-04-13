@@ -12,9 +12,9 @@
     </parent>
 
     <groupId>tn.esprit.spring</groupId>
-    <artifactId>kaddem</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
-    <name>kaddem</name>
+    <artifactId>4TWIN2-G5-kaddem</artifactId>
+    <version>1.0.0</version>
+    <name>4TWIN2-G5-kaddem</name>
     <description>kaddem</description>
 
     <properties>
