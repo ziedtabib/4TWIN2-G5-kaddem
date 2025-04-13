@@ -10,7 +10,7 @@ pipeline {
         SONAR_TOKEN = 'squ_b46167a3bc15e5a285301ea6549c6e60b1afebd0'
         SONAR_HOST_URL = 'http://localhost:9000'
         NEXUS_URL = 'http://localhost:8081/repository/maven-releases/'
-        DOCKER_IMAGE = 'israaboulaares-4TWIN2-G5-kaddem'
+        DOCKER_IMAGE = 'israaboulaares/israaboulaares-4TWIN2-G5-kaddem'
     }
 
     stages {
