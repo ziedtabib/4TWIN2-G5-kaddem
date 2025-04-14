@@ -9,6 +9,7 @@ pipeline {
     environment {
         DOCKER_IMAGE = 'ziedtabib/ziedtabib-4twin2-g5-kaddem'
         NEXUS_URL = 'http://localhost:8081/repository/maven-releases/'
+        JAR_FILE = 'target/4TWIN2-G5-kaddem-1.0.0.jar' // Définition explicite du nom du JAR
     }
 
     options {
@@ -35,7 +36,6 @@ pipeline {
             }
         }
 
-    
         stage('MVN SONARQUAR') {
             steps {
                 sh 'mvn sonar:sonar -Dsonar.login=squ_e7b1e0ea23c135bca1f1f969b1d44ee73340030b -Dmaven.test.skip=true'
@@ -51,19 +51,24 @@ pipeline {
         stage('Package') {
             steps {
                 sh 'mvn package -DskipTests'
+                // Vérification que le JAR a bien été généré
+                sh 'ls -l target/'
             }
         }
 
-stage('Build Docker Image') {
-    steps {
-        script {
-            // Find the JAR file that was built
-            def jarFile = sh(script: 'ls target/*.jar', returnStdout: true).trim()
-            echo "Building Docker image: ${DOCKER_IMAGE}:${env.BUILD_NUMBER}"
-            docker.build("${DOCKER_IMAGE}:${env.BUILD_NUMBER}", "--build-arg JAR_FILE=${jarFile} .")
+        stage('Build Docker Image') {
+            steps {
+                script {
+                    // Vérification explicite du fichier JAR
+                    sh "test -f ${JAR_FILE} || { echo 'Fichier JAR introuvable'; exit 1; }"
+                    
+                    echo "Building Docker image: ${DOCKER_IMAGE}:${env.BUILD_NUMBER}"
+                    
+                    // Construction avec le chemin absolu du JAR
+                    docker.build("${DOCKER_IMAGE}:${env.BUILD_NUMBER}", "--build-arg JAR_FILE=${JAR_FILE} .")
+                }
+            }
         }
-    }
-}
 
         stage('Push to Docker Hub') {
             steps {
@@ -79,15 +84,22 @@ stage('Build Docker Image') {
 
         stage('Deploy with Docker Compose') {
             steps {
-                sh "export BUILD_NUMBER=${env.BUILD_NUMBER}"
-                sh 'docker-compose down || true'
-                sh 'docker-compose up -d --build'
+                script {
+                    // Utilisation de la variable d'environnement correctement
+                    sh """
+                        export BUILD_NUMBER=${env.BUILD_NUMBER}
+                        docker-compose down || true
+                        docker-compose up -d --build
+                    """
+                }
             }
         }
 
         stage('Cleanup') {
             steps {
-                sh 'docker rmi ${DOCKER_IMAGE}:${env.BUILD_NUMBER} || true'
+                script {
+                    sh "docker rmi ${DOCKER_IMAGE}:${env.BUILD_NUMBER} || true"
+                }
             }
         }
     }
