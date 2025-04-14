@@ -61,22 +61,38 @@ pipeline {
                 script {
                     // Vérification explicite du fichier JAR
                     sh "test -f ${JAR_FILE} || { echo 'Fichier JAR introuvable'; exit 1; }"
-                    
+
                     echo "Building Docker image: ${DOCKER_IMAGE}:${env.BUILD_NUMBER}"
-                    
+
                     // Construction avec le chemin absolu du JAR
                     docker.build("${DOCKER_IMAGE}:${env.BUILD_NUMBER}", "--build-arg JAR_FILE=${JAR_FILE} .")
                 }
             }
         }
 
+
         stage('Push to Docker Hub') {
             steps {
                 script {
-                    docker.withRegistry('https://index.docker.io/v1/', '756d7d06-7ce7-414c-a54a-4c505df44299') {
-                        def dockerImage = docker.image("${DOCKER_IMAGE}:${env.BUILD_NUMBER}")
-                        dockerImage.push()
-                        dockerImage.push('latest')
+                    // Vérifiez que l'image existe localement
+                    sh "docker images | grep ${DOCKER_IMAGE}"
+
+                    // Tentez une connexion test
+                    withCredentials([usernamePassword(
+                        credentialsId: '8e0cf094-a5ab-49a7-9410-c1114dfd04ec',
+                        usernameVariable: 'ziedtabib',
+                        passwordVariable: 'zied@1234'
+                    )]) {
+                        sh '''
+                            echo "Trying to login to Docker Hub..."
+                            echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+                        '''
+                    }
+
+                    // Push seulement si le login réussit
+                    docker.withRegistry('https://index.docker.io/v1/', '8e0cf094-a5ab-49a7-9410-c1114dfd04ec') {
+                        docker.image("${DOCKER_IMAGE}:${env.BUILD_NUMBER}").push()
+                        docker.image("${DOCKER_IMAGE}:latest").push()
                     }
                 }
             }
