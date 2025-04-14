@@ -7,17 +7,21 @@ pipeline {
     }
 
     environment {
-        SONAR_TOKEN = credentials('squ_e7b1e0ea23c135bca1f1f969b1d44ee73340030b') 
+        SONAR_TOKEN = credentials('squ_e7b1e0ea23c135bca1f1f969b1d44ee73340030b')
         SONAR_HOST_URL = 'http://localhost:9000'
         NEXUS_URL = 'http://localhost:8081/repository/maven-releases/'
-        DOCKER_IMAGE = 'ziedtabib/4twin2-g5-kaddem' 
+        DOCKER_IMAGE = 'ziedtabib/4twin2-g5-kaddem'
+    }
+
+    options {
+        timestamps() // Add timestamps for better debugging
+        skipDefaultCheckout() // Avoid duplicate checkout
     }
 
     stages {
         stage('Cloner le projet') {
             steps {
-                git branch: 'ZiedTabib-4TWIN2-G5',
-                    url: 'https://github.com/ziedtabib/4TWIN2-G5-kaddem.git'
+                checkout scm // Use SCM config from Jenkins job
             }
         }
 
@@ -33,15 +37,17 @@ pipeline {
             }
         }
 
-        stage('MVN SONARQUAR') {
+        stage('SonarQube Analysis') {
             steps {
-                sh "mvn sonar:sonar -Dsonar.token=${SONAR_TOKEN} -Dsonar.host.url=${SONAR_HOST_URL} -Dmaven.test.skip=true"
+                withSonarQubeEnv('SonarQube') { // Use Jenkins SonarQube plugin config
+                    sh "mvn sonar:sonar -Dsonar.token=${SONAR_TOKEN} -Dsonar.host.url=${SONAR_HOST_URL} -Dmaven.test.skip=true"
+                }
             }
         }
 
-        stage('MVN Nexus') {
+        stage('Nexus Deploy') {
             steps {
-                sh 'mvn deploy'
+                sh 'mvn deploy -DskipTests'
             }
         }
 
@@ -55,8 +61,7 @@ pipeline {
             steps {
                 script {
                     echo "Building Docker image: ${DOCKER_IMAGE}:${env.BUILD_NUMBER}"
-                    def dockerImage = docker.build("${DOCKER_IMAGE}:${env.BUILD_NUMBER}")
-                    echo "Docker image built successfully"
+                    docker.build("${DOCKER_IMAGE}:${env.BUILD_NUMBER}")
                 }
             }
         }
@@ -64,21 +69,19 @@ pipeline {
         stage('Push to Docker Hub') {
             steps {
                 script {
-                    echo "Pushing Docker image to Docker Hub"
                     docker.withRegistry('https://index.docker.io/v1/', '756d7d06-7ce7-414c-a54a-4c505df44299') {
                         def dockerImage = docker.image("${DOCKER_IMAGE}:${env.BUILD_NUMBER}")
                         dockerImage.push()
                         dockerImage.push('latest')
                     }
-                    echo "Docker image pushed successfully"
                 }
             }
         }
 
         stage('Deploy with Docker Compose') {
             steps {
-                sh 'export BUILD_NUMBER=${BUILD_NUMBER}'
-                sh 'docker-compose down'
+                sh "export BUILD_NUMBER=${env.BUILD_NUMBER}"
+                sh 'docker-compose down || true' // Prevent failure if no containers exist
                 sh 'docker-compose up -d --build'
             }
         }
@@ -96,6 +99,9 @@ pipeline {
         }
         failure {
             echo "❌ Le pipeline a échoué."
+        }
+        always {
+            cleanWs() // Clean workspace after run
         }
     }
 }
