@@ -2,15 +2,15 @@ pipeline {
     agent any
 
     tools {
-        jdk 'JAVA_HOME'    
-        maven 'M2_HOME'    
+        jdk 'JAVA_HOME'
+        maven 'M2_HOME'
     }
 
     environment {
-        SONAR_TOKEN = 'squ_38e27a2f6d49836a65b117cd550798a0648f61bb'
+        SONAR_TOKEN = credentials('squ_e7b1e0ea23c135bca1f1f969b1d44ee73340030b') 
         SONAR_HOST_URL = 'http://localhost:9000'
         NEXUS_URL = 'http://localhost:8081/repository/maven-releases/'
-        DOCKER_IMAGE = 'ziedtabib-4TWIN2-G5-kaddem'
+        DOCKER_IMAGE = 'ziedtabib/4twin2-g5-kaddem' 
     }
 
     stages {
@@ -35,17 +35,17 @@ pipeline {
 
         stage('MVN SONARQUAR') {
             steps {
-                sh 'mvn sonar:sonar -Dsonar.login=squ_1a609967b2840ac670555bf59c7accf95ff0ed91 -Dmaven.test.skip=true'
+                sh "mvn sonar:sonar -Dsonar.token=${SONAR_TOKEN} -Dsonar.host.url=${SONAR_HOST_URL} -Dmaven.test.skip=true"
             }
-        } 
+        }
 
         stage('MVN Nexus') {
             steps {
                 sh 'mvn deploy'
             }
         }
-    
-    stage('Package') {
+
+        stage('Package') {
             steps {
                 sh 'mvn package -DskipTests'
             }
@@ -54,7 +54,9 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    docker.build("${DOCKER_IMAGE}:${env.BUILD_NUMBER}")
+                    echo "Building Docker image: ${DOCKER_IMAGE}:${env.BUILD_NUMBER}"
+                    def dockerImage = docker.build("${DOCKER_IMAGE}:${env.BUILD_NUMBER}")
+                    echo "Docker image built successfully"
                 }
             }
         }
@@ -62,16 +64,20 @@ pipeline {
         stage('Push to Docker Hub') {
             steps {
                 script {
+                    echo "Pushing Docker image to Docker Hub"
                     docker.withRegistry('https://index.docker.io/v1/', '756d7d06-7ce7-414c-a54a-4c505df44299') {
-                        docker.image("${DOCKER_IMAGE}:${env.BUILD_NUMBER}").push()
-                        docker.image("${DOCKER_IMAGE}:${env.BUILD_NUMBER}").push('latest')
+                        def dockerImage = docker.image("${DOCKER_IMAGE}:${env.BUILD_NUMBER}")
+                        dockerImage.push()
+                        dockerImage.push('latest')
                     }
+                    echo "Docker image pushed successfully"
                 }
             }
         }
 
         stage('Deploy with Docker Compose') {
             steps {
+                sh 'export BUILD_NUMBER=${BUILD_NUMBER}'
                 sh 'docker-compose down'
                 sh 'docker-compose up -d --build'
             }
