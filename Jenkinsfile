@@ -54,14 +54,16 @@ pipeline {
             }
         }
 
-        stage('Build Docker Image') {
-            steps {
-                script {
-                    echo "Building Docker image: ${DOCKER_IMAGE}:${env.BUILD_NUMBER}"
-                    docker.build("${DOCKER_IMAGE}:${env.BUILD_NUMBER}")
-                }
-            }
+stage('Build Docker Image') {
+    steps {
+        script {
+            // Find the JAR file that was built
+            def jarFile = sh(script: 'ls target/*.jar', returnStdout: true).trim()
+            echo "Building Docker image: ${DOCKER_IMAGE}:${env.BUILD_NUMBER}"
+            docker.build("${DOCKER_IMAGE}:${env.BUILD_NUMBER}", "--build-arg JAR_FILE=${jarFile} .")
         }
+    }
+}
 
         stage('Push to Docker Hub') {
             steps {
