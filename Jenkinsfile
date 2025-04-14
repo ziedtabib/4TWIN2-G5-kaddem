@@ -7,21 +7,19 @@ pipeline {
     }
 
     environment {
-        SONAR_TOKEN = 'squ_e7b1e0ea23c135bca1f1f969b1d44ee73340030b'
-        SONAR_HOST_URL = 'http://localhost:9000'
+        DOCKER_IMAGE = 'ziedtabib/ziedtabib-4twin2-g5-kaddem'
         NEXUS_URL = 'http://localhost:8081/repository/maven-releases/'
-        DOCKER_IMAGE = 'ziedtabib/4twin2-g5-kaddem'
     }
 
     options {
-        timestamps() // Add timestamps for better debugging
-        skipDefaultCheckout() // Avoid duplicate checkout
+        timestamps()
+        skipDefaultCheckout()
     }
 
     stages {
         stage('Cloner le projet') {
             steps {
-                checkout scm // Use SCM config from Jenkins job
+                checkout scm
             }
         }
 
@@ -37,11 +35,10 @@ pipeline {
             }
         }
 
-        stage('SonarQube Analysis') {
+    
+        stage('MVN SONARQUAR') {
             steps {
-                withSonarQubeEnv('SonarQube') { // Use Jenkins SonarQube plugin config
-                    sh "mvn sonar:sonar -Dsonar.token=${SONAR_TOKEN} -Dsonar.host.url=${SONAR_HOST_URL} -Dmaven.test.skip=true"
-                }
+                sh 'mvn sonar:sonar -Dsonar.login=squ_e7b1e0ea23c135bca1f1f969b1d44ee73340030b -Dmaven.test.skip=true'
             }
         }
 
@@ -81,7 +78,7 @@ pipeline {
         stage('Deploy with Docker Compose') {
             steps {
                 sh "export BUILD_NUMBER=${env.BUILD_NUMBER}"
-                sh 'docker-compose down || true' // Prevent failure if no containers exist
+                sh 'docker-compose down || true'
                 sh 'docker-compose up -d --build'
             }
         }
@@ -101,7 +98,7 @@ pipeline {
             echo "❌ Le pipeline a échoué."
         }
         always {
-            cleanWs() // Clean workspace after run
+            cleanWs()
         }
     }
 }
