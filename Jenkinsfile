@@ -7,7 +7,7 @@ pipeline {
     }
 
     environment {
-        SONAR_TOKEN = credentials('squ_e7b1e0ea23c135bca1f1f969b1d44ee73340030b')
+        SONAR_TOKEN = 'squ_e7b1e0ea23c135bca1f1f969b1d44ee73340030b'
         SONAR_HOST_URL = 'http://localhost:9000'
         NEXUS_URL = 'http://localhost:8081/repository/maven-releases/'
         DOCKER_IMAGE = 'ziedtabib/4twin2-g5-kaddem'
