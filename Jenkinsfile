@@ -9,7 +9,9 @@ pipeline {
     environment {
         DOCKER_IMAGE = 'ziedtabib/ziedtabib-4twin2-g5-kaddem'
         NEXUS_URL = 'http://localhost:8081/repository/maven-releases/'
-        JAR_FILE = 'target/4TWIN2-G5-kaddem-1.0.0.jar' // Définition explicite du nom du JAR
+        JAR_FILE = 'target/4TWIN2-G5-kaddem-1.0.0.jar'
+        // Utilisation du credentialsId visible dans votre image
+        DOCKER_CREDS = credentials('docker-hub-creds')
     }
 
     options {
@@ -51,7 +53,6 @@ pipeline {
         stage('Package') {
             steps {
                 sh 'mvn package -DskipTests'
-                // Vérification que le JAR a bien été généré
                 sh 'ls -l target/'
             }
         }
@@ -59,39 +60,39 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    // Vérification explicite du fichier JAR
                     sh "test -f ${JAR_FILE} || { echo 'Fichier JAR introuvable'; exit 1; }"
-
                     echo "Building Docker image: ${DOCKER_IMAGE}:${env.BUILD_NUMBER}"
-
-                    // Construction avec le chemin absolu du JAR
                     docker.build("${DOCKER_IMAGE}:${env.BUILD_NUMBER}", "--build-arg JAR_FILE=${JAR_FILE} .")
                 }
             }
         }
 
-
         stage('Push to Docker Hub') {
             steps {
                 script {
-                    // Vérifiez que l'image existe localement
+                    // Vérification de l'image locale
                     sh "docker images | grep ${DOCKER_IMAGE}"
 
-                    // Tentez une connexion test
+                    // Authentification avec les credentials de votre image
                     withCredentials([usernamePassword(
-                        credentialsId: '8e0cf094-a5ab-49a7-9410-c1114dfd04ec',
+                        credentialsId: 'docker-hub-creds',
                         usernameVariable: 'ziedtabib',
                         passwordVariable: 'zied@1234'
                     )]) {
                         sh '''
-                            echo "Trying to login to Docker Hub..."
-                            echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+                            echo "Authentification sur Docker Hub..."
+                            echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin || {
+                                echo "Échec de l'authentification Docker Hub";
+                                exit 1;
+                            }
                         '''
                     }
 
-                    // Push seulement si le login réussit
-                    docker.withRegistry('https://index.docker.io/v1/', '8e0cf094-a5ab-49a7-9410-c1114dfd04ec') {
+                    // Push de l'image
+                    docker.withRegistry('https://index.docker.io/v1/', 'docker-hub-creds') {
                         docker.image("${DOCKER_IMAGE}:${env.BUILD_NUMBER}").push()
+                        // Tag et push de la version latest
+                        sh "docker tag ${DOCKER_IMAGE}:${env.BUILD_NUMBER} ${DOCKER_IMAGE}:latest"
                         docker.image("${DOCKER_IMAGE}:latest").push()
                     }
                 }
@@ -101,11 +102,9 @@ pipeline {
         stage('Deploy with Docker Compose') {
             steps {
                 script {
-                    // Utilisation de la variable d'environnement correctement
                     sh """
-                        export BUILD_NUMBER=${env.BUILD_NUMBER}
                         docker-compose down || true
-                        docker-compose up -d --build
+                        BUILD_NUMBER=${env.BUILD_NUMBER} docker-compose up -d --build
                     """
                 }
             }
@@ -122,13 +121,19 @@ pipeline {
 
     post {
         success {
-            echo "✅ Pipeline terminé avec succès !"
+            echo "✅ Pipeline exécuté avec succès !"
+            slackSend(color: 'good', message: "Build ${env.BUILD_NUMBER} réussi - ${env.JOB_NAME}")
         }
         failure {
-            echo "❌ Le pipeline a échoué."
+            echo "❌ Échec du pipeline"
+            slackSend(color: 'danger', message: "Échec du build ${env.BUILD_NUMBER} - ${env.JOB_NAME}")
         }
         always {
             cleanWs()
+            script {
+                // Nettoyage des images intermédiaires
+                sh 'docker system prune -f || true'
+            }
         }
     }
 }
